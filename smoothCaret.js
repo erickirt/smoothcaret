@@ -54,6 +54,102 @@ class SmoothCaret {
 }
 
 function initsmoothCarets() {
+    //automatically wrap any input elements with class "sc"
+    document.querySelectorAll('input.sc').forEach((inputElem) => {
+        //get computed styles from input before wrapping
+        const computedStyle = window.getComputedStyle(inputElem);
+        
+        //create wrapper container
+        const container = document.createElement('div');
+        container.className = 'sc-container';
+        
+        //copy essential layout properties to container for seamless integration
+        const propertiesToCopy = [
+            'width', 'maxWidth', 'minWidth', 
+            'flex', 'flexGrow', 'flexShrink', 'flexBasis',
+            'gridColumn', 'gridRow', 'gridArea',
+            'margin', 'position'
+        ];
+        
+        propertiesToCopy.forEach(prop => {
+            const value = computedStyle.getPropertyValue(prop.replace(/[A-Z]/g, m => '-' + m.toLowerCase()));
+            if (value && value !== 'none' && value !== 'auto' && value !== 'normal') {
+                container.style[prop] = value;
+            }
+        });
+        
+        //if input has an inline width, copy it
+        if (inputElem.style.width) {
+            container.style.width = inputElem.style.width;
+        }
+        
+        //calculate optimal caret height based on actual text dimensions
+        const fontSize = parseFloat(computedStyle.fontSize);
+        const lineHeight = computedStyle.lineHeight;
+        
+        //calculate caret height based on line-height (which represents actual text height)
+        let caretHeight;
+        if (lineHeight === 'normal') {
+            //"normal" line-height is typically 1.2x font-size
+            caretHeight = fontSize * 1.2;
+        } else if (lineHeight.endsWith('px')) {
+            //line-height is in pixels - use 90% of it for nice appearance
+            caretHeight = parseFloat(lineHeight) * 0.9;
+        } else if (!isNaN(parseFloat(lineHeight))) {
+            //line-height is a unitless multiplier
+            caretHeight = fontSize * parseFloat(lineHeight) * 0.9;
+        } else {
+            //fallback to font-size based calculation
+            caretHeight = fontSize * 1.2;
+        }
+        
+        //ensure caret height is at least as tall as the font size
+        caretHeight = Math.max(caretHeight, fontSize);
+        
+        //create caret element with default styling
+        const caretElem = document.createElement('div');
+        caretElem.className = 'caret';
+        
+        //set all styles with !important to prevent global CSS from affecting the caret
+        caretElem.style.setProperty('width', '2px', 'important');
+        caretElem.style.setProperty('height', `${caretHeight}px`, 'important');
+        caretElem.style.setProperty('background-color', '#00a6ff', 'important');
+        caretElem.style.setProperty('padding', '0', 'important');
+        caretElem.style.setProperty('margin', '0', 'important');
+        caretElem.style.setProperty('border', 'none', 'important');
+        caretElem.style.setProperty('box-sizing', 'content-box', 'important');
+        caretElem.style.setProperty('font-size', 'inherit', 'important');
+        caretElem.style.setProperty('font-family', 'inherit', 'important');
+        caretElem.style.setProperty('line-height', 'normal', 'important');
+        caretElem.style.setProperty('text-align', 'left', 'important');
+        caretElem.style.setProperty('vertical-align', 'baseline', 'important');
+        caretElem.style.setProperty('background-image', 'none', 'important');
+        caretElem.style.setProperty('box-shadow', 'none', 'important');
+        caretElem.style.setProperty('outline', 'none', 'important');
+        caretElem.style.setProperty('min-width', 'unset', 'important');
+        caretElem.style.setProperty('max-width', 'unset', 'important');
+        caretElem.style.setProperty('min-height', 'unset', 'important');
+        caretElem.style.setProperty('max-height', 'unset', 'important');
+        caretElem.style.setProperty('pointer-events', 'none', 'important');
+        caretElem.style.setProperty('z-index', '9999999', 'important');
+        
+        //insert container before the input
+        inputElem.parentNode.insertBefore(container, inputElem);
+        
+        //reset input's layout properties since container now handles them
+        inputElem.style.width = '100%';
+        inputElem.style.margin = '0';
+        
+        //move input into container and add the smoothCaretInput class
+        container.appendChild(inputElem);
+        inputElem.classList.add('smoothCaretInput');
+        inputElem.classList.remove('sc'); //remove sc class to avoid re-processing
+        
+        //add caret element
+        container.appendChild(caretElem);
+    });
+    
+    //now initialize all sc-containers (both manually created and auto-generated)
     document.querySelectorAll('.sc-container').forEach((element, index) => {
         smoothCarets.push(new SmoothCaret(element.children[1], element.children[0], index));
         smoothCarets[index].init();
